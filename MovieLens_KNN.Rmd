@@ -1,0 +1,99 @@
+---
+title: "MovieLens 電影推薦系統_KNN"
+author: "許sir"
+---
+
+### **資料說明**
+#### 1.本單元主題僅在介紹分群與推荐
+
+#### 2.MovieLens是某電影公司針對1000位使用者共1700部電影之資料
+#### - 我們會使用U.data、U.item、U.user
+#### - U.data: 是使用者對1682部電影的評分
+#### - U.item: 記錄每一部電影的資訊
+#### - U.user: 記錄每一位使用者的基本資料
+
+---
+### **[設定所需的函式庫(libraries)以及載入資料]**
+```{r message=FALSE, warning=FALSE, results='hide'}
+#install.packages("kknn")
+library(kknn)
+#install.packages("class")
+library(class)
+
+
+
+setwd("/home/m600/Working Area/Rdata Practice/Customer Course/ml-100k")
+
+data=read.table("u.data")
+data=data[,-4] #刪除不用的第四列資料
+names(data)=c("userid","itemid","rating")
+
+head(data)
+dim(data)
+
+user=read.table("u.user")
+head(user)
+```
+
+### **[Part 1].手動撰寫一個MovieLens_KNN的函數**
+
+```{r message=FALSE, warning=FALSE}
+Userid=1;Itemid=61;n=50;K=10
+
+MovieLens_KNN=function(Userid,Itemid,n,K) {
+  
+  sub=which(data$userid==Userid)
+  if(length(sub)>=n) sub_n=sample(sub,n)
+  if(length(sub)<n) sub_n=sample(sub,length(sub))
+  known_itemid=data$itemid[sub_n]
+  unknown_itemid=Itemid
+  
+  unknown_sub=which(data$itemid==unknown_itemid)
+  user=data$userid[unknown_sub[-1]]
+  
+  data_all=matrix(0,1+length(user),2+length(known_itemid))
+  data_all=data.frame(data_all)
+  names(data_all)=c("userid",paste("unknown_itemid_",Itemid),paste("itemid_",known_itemid,sep=""))
+  item=c(unknown_itemid,known_itemid)
+  data_all$userid=c(Userid,user)
+  
+  for (i in 1:nrow(data_all))
+  { 
+    data_temp=data[which(data$userid==data_all$userid[i]),]
+    for (j in 1:length(item))
+    {  if(sum(as.numeric(data_temp$itemid==item[j]))!=0)
+    {data_all[i,j+1]=data_temp$rating[which(data_temp$itemid==item[j])]}
+    } }
+  
+  data_test_x=data_all[1,c(-1,-2)]
+  data_test_y=data_all[1,2]
+  data_train_x=data_all[-1,c(-1,-2)]
+  data_train_y=data_all[-1,2]
+  
+  fit=knn(data_train_x,data_test_x,cl=data_train_y,k=K)
+  list("data_all:"=data_all,"True Rating:"=data_test_y,"Predict Rating:"=fit,"User ID:"=Userid,"Item ID:"=Itemid)
+}
+```
+
+
+```{r message=FALSE, warning=FALSE}
+MovieLens_KNN(Userid=1,Itemid=61,n=50,K=10)
+```
+
+### **[Part 2].20部電影的推薦數**
+
+#### **2-1.如果是User1，你會推薦他的前五名電影是什麼**
+```{r}
+user1=NULL
+for(Item in 1:20) 
+user1=c(user1,MovieLens_KNN(Userid=1,Itemid=Item,n=50,K=10)$`True Rating:`)
+user1 #我們預測user1 對這20部電影的評分
+
+which(user1==5) #顯示評分為五分的ID
+```
+
+### **這9部電影分別是**
+- Toy Story (玩具總動員)
+- Shanghai Triad (搖阿搖 搖到外婆橋)
+- Dead Man Walking (穿越生死線)
+- 12.13~16.19 是安東尼家族的電影
